@@ -2,16 +2,16 @@ package com.zhentao.draw.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
+import io.netty.util.concurrent.GlobalEventExecutor;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +30,30 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
 
     private WebSocketServerHandshaker handshaker;
 
+    public static ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+
+
+
+    /**
+     * 将新加入的连接放入group中
+     * @param ctx
+     * @throws Exception
+     */
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        Channel incoming = ctx.channel();
+        channels.add(incoming);
+    }
+    /**
+     * 删除group中下线的连接
+     * @param ctx
+     * @throws Exception
+     */
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        Channel incoming = ctx.channel();
+        channels.remove(incoming);
+    }
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Object msg)
@@ -100,10 +124,20 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         if (logger.isLoggable(Level.FINE)) {
             logger.fine(String.format("%s received %s", ctx.channel(), request));
         }
-        ctx.channel().write(
-                new TextWebSocketFrame(request
-                        + " , 欢迎使用Netty WebSocket服务，现在时刻："
-                        + new java.util.Date().toString()));
+//        ctx.channel().write(
+//                new TextWebSocketFrame(request
+//                        + " , 欢迎使用Netty WebSocket服务，现在时刻："
+//                        + new java.util.Date().toString()));
+        Channel incoming = ctx.channel();
+        for (Channel channel : channels) {
+            if (channel != incoming){
+//                channel.writeAndFlush(request + "\n");
+                channel.writeAndFlush(new TextWebSocketFrame(request));
+            } else {
+//                channel.writeAndFlush(request + "\n");
+                channel.writeAndFlush(new TextWebSocketFrame(request));
+            }
+        }
     }
 
     private static void sendHttpResponse(ChannelHandlerContext ctx,
