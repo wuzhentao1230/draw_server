@@ -57,7 +57,7 @@ public class WebSocketServer {
     }
 
     public static void main(String[] args) throws Exception {
-        int port = 8080;
+        int port = 7096;
         if (args.length > 0) {
             try {
                 port = Integer.parseInt(args[0]);
